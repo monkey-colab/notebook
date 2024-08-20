@@ -1,3 +1,12 @@
+use std::io::{Cursor, Write};
+use sparql::query::{QueryResults, GraphResult};
+use sparql::model::ResultFormat;
+use std::sync::Mutex;
+
+lazy_static! {
+    static ref GRAPH_STORE: Mutex<GraphStore> = Mutex::new(GraphStore::new());
+}
+
 #[no_mangle]
 pub extern "C" fn query_with_mime(q_ptr: *mut u8, size: usize, mime_ptr: *mut u8, mime_size: usize) -> u64 {
     let query = ptr_to_string(q_ptr, size);
@@ -13,19 +22,38 @@ pub extern "C" fn query_with_mime(q_ptr: *mut u8, size: usize, mime_ptr: *mut u8
     let result = store.query(query.as_str())
         .map_err(|e| e.to_string())
         .and_then(|results| {
-            let format = match mime_type.as_str() {
-                "application/sparql-results+json" => ResultFormat::Json,
-                "application/sparql-results+xml" => ResultFormat::Xml,
-                "text/csv" => ResultFormat::Csv,
-                "text/tab-separated-values" => ResultFormat::Tsv,
-                _ => return Err("Unsupported MIME type".to_string()),
-            };
-
             // Use a cursor to write directly into the buffer after the length placeholder
             let mut cursor = Cursor::new(&mut buffer);
             cursor.set_position(5); // Skip the 1 byte for success/failure and 4 bytes for length
 
-            results.write(&mut cursor, format).map_err(|e| e.to_string())
+            match results {
+                QueryResults::Boolean(value) => {
+                    // Handle boolean results
+                    let result_str = if value { "true" } else { "false" };
+                    write!(cursor, "{}", result_str).map_err(|e| e.to_string())
+                }
+                QueryResults::Solutions(solutions) => {
+                    // Handle solution results
+                    let format = match mime_type.as_str() {
+                        "application/sparql-results+json" => ResultFormat::Json,
+                        "application/sparql-results+xml" => ResultFormat::Xml,
+                        "text/csv" => ResultFormat::Csv,
+                        "text/tab-separated-values" => ResultFormat::Tsv,
+                        _ => return Err("Unsupported MIME type".to_string()),
+                    };
+                    solutions.write(&mut cursor, format).map_err(|e| e.to_string())
+                }
+                QueryResults::Graph(graph) => {
+                    // Handle graph results
+                    let format = match mime_type.as_str() {
+                        "application/n-triples" => ResultFormat::NTriples,
+                        "application/n-quads" => ResultFormat::NQuads,
+                        "text/turtle" => ResultFormat::Turtle,
+                        _ => return Err("Unsupported MIME type for graph data".to_string()),
+                    };
+                    graph.write_graph(&mut cursor, format).map_err(|e| e.to_string())
+                }
+            }
         });
 
     match result {
@@ -40,9 +68,7 @@ pub extern "C" fn query_with_mime(q_ptr: *mut u8, size: usize, mime_ptr: *mut u8
             buffer[1..5].copy_from_slice(&content_len.to_le_bytes());
         }
         Err(err_msg) => {
-            // Failure byte is already 0, just write the error message
-
-            // Write the error message to the buffer
+            // Update the buffer with the error message
             let err_bytes = err_msg.as_bytes();
             buffer.extend_from_slice(err_bytes);
 
@@ -51,6 +77,8 @@ pub extern "C" fn query_with_mime(q_ptr: *mut u8, size: usize, mime_ptr: *mut u8
 
             // Write the actual length into the reserved space
             buffer[1..5].copy_from_slice(&err_len.to_le_bytes());
+
+            // The success byte is already 0, indicating failure
         }
     }
 
