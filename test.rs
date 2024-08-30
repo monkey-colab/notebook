@@ -1,4 +1,6 @@
-use std::collections::HashMap;
+const RDF_TYPE: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
+
+/// Convert a `QueryTripleIter` into a JSON array format with `@type` handling.
 fn rdf_to_jsonld(triples: QueryTripleIter) -> Value {
     let mut graph: HashMap<String, HashMap<String, Vec<Value>>> = HashMap::new();
 
@@ -26,15 +28,27 @@ fn rdf_to_jsonld(triples: QueryTripleIter) -> Value {
 
         // Update the graph HashMap
         let entry = graph.entry(subject_iri.clone()).or_insert_with(HashMap::new);
-        let objects = entry.entry(predicate_iri).or_insert_with(Vec::new);
-        objects.push(object_value);
+        
+        if predicate_iri == RDF_TYPE {
+            // Handle `rdf:type` as `@type`
+            let types = entry.entry("@type".to_string()).or_insert_with(Vec::new);
+            types.push(object_value["@id"].clone());
+        } else {
+            // Handle other predicates
+            let objects = entry.entry(predicate_iri).or_insert_with(Vec::new);
+            objects.push(object_value);
+        }
     }
 
     // Convert the HashMap to a JSON array
-    let mut result: Vec<Value> = graph.into_iter().map(|(subject, predicates)| {
+    let result: Vec<Value> = graph.into_iter().map(|(subject, predicates)| {
         let mut subject_entry = json!({"@id": subject});
         for (predicate, objects) in predicates {
-            subject_entry[predicate] = json!(objects);
+            if predicate == "@type" && objects.len() == 1 {
+                subject_entry["@type"] = objects[0].clone();  // If there's only one type, avoid array
+            } else {
+                subject_entry[predicate] = json!(objects);
+            }
         }
         subject_entry
     }).collect();
