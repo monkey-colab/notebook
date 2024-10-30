@@ -1,0 +1,94 @@
+RDF Analysis Framework: Multi-Agent Solution for Processing RDF Queries
+
+This document outlines a framework for processing queries on RDF data using a multi-agent system. The system answers questions based on RDF model schema and data, ensuring efficient query classification, execution, and results visualization.
+1. Overview
+
+The primary goal of this framework is to enable a user to answer questions about the RDF model schema and data through a systematic approach. The framework includes various components such as schema and data processing agents, query classification, and execution mechanisms, which work in tandem to retrieve accurate answers from the RDF dataset.
+2. Core Questions
+
+The framework is designed to address two fundamental types of queries:
+
+    Schema Queries – Questions that require knowledge of the RDF schema.
+    Data Queries – Questions that rely on the RDF data to provide answers.
+
+Decision Path for Queries
+
+    Do I need schema to answer this query?
+        If yes, identify the specific schema definitions needed.
+        If no, retrieve the relevant data to answer the query directly.
+
+Diagram 1: Query Decision Path
+This diagram depicts the decision-making process based on whether the query requires schema knowledge or can be answered with data alone.
+3. Architecture and Workflow
+Components
+
+    Query Classifier
+        Classifies the incoming query as schema-related or data-related.
+        Determines if additional schema information is required to process the query.
+
+    Schema Retrieval Agent
+        Retrieves relevant schema definitions when needed.
+        Ensures that the query has all necessary schema information for execution.
+
+    SPARQL Query Generator
+        Transforms classified queries into SPARQL format.
+        Ensures correct syntax and structure for execution in the RDF triple store.
+
+    Query Execution Agent
+        Executes SPARQL queries against the RDF data.
+        Handles errors and returns results or feedback on execution.
+
+    Result Generation and Visualization
+        Generates tables, charts, or graphs as per the user’s visualization preference.
+        Allows users to interactively explore data results.
+
+Workflow
+
+    Query Classification: The user inputs a query, which the Query Classifier categorizes as either schema or data-focused.
+    Schema Retrieval (if needed): For schema-related queries, the Schema Retrieval Agent fetches relevant RDF schema definitions.
+    SPARQL Query Generation: The SPARQL Query Generator creates a SPARQL query based on the classified input.
+    Query Execution: The Query Execution Agent runs the SPARQL query on the RDF data and manages any errors.
+    Result Visualization: The framework generates a visualization of the data as requested by the user.
+
+Diagram 2: Architecture and Workflow Diagram
+This diagram illustrates the flow of information through the multi-agent system, from query input to result visualization.
+4. Detailed Component Interaction
+Query Classification
+
+The Query Classifier is responsible for:
+
+    Determining if the query is schema-dependent.
+    Identifying any additional data requirements needed for query execution.
+    Ensuring that the query is routed correctly to other components based on its classification.
+
+Diagram 3: Query Classification Diagram
+This diagram shows how the Query Classifier assesses and routes queries for further processing.
+Schema Retrieval
+
+The Schema Retrieval Agent:
+
+    Fetches RDF schema (RDFS) definitions as required.
+    Provides schema details needed to execute complex queries.
+
+Query Execution
+
+The Query Execution Agent:
+
+    Manages SPARQL query syntax.
+    Ensures that the query runs smoothly, handling errors or reformatting as needed.
+    Summarizes output for the user, providing an easy-to-read answer or raw data as specified.
+
+Diagram 4: Query Execution Diagram
+This diagram illustrates the role of the Query Execution Agent and its interaction with the RDF data store.
+Visualization
+
+The final component, Visualization, provides the user with:
+
+    Tabular views, charts, or graphs for query results.
+    Options to customize data views, facilitating a deeper understanding of the RDF data.
+
+Diagram 5: Result Visualization Diagram
+This diagram displays the various formats available for representing the query results.
+Conclusion
+
+This multi-agent RDF query framework is a robust solution for handling schema and data queries. By structuring the system with specific agents for classification, schema retrieval, query generation, execution, and visualization, it provides a flexible, scalable approach for interacting with RDF data.
