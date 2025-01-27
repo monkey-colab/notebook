@@ -1,0 +1,122 @@
+Extending SHACL-AF to support nested triple creation and tree-like structures is an interesting idea. This would involve introducing new constructs to dynamically generate new terms (nodes) with unique identifiers, link them to existing terms, and allow for hierarchical or nested relationships. Below is a conceptual proposal for such an extension:
+Proposed Extension: Nested Triple Creation in SHACL-AF
+1. New Construct: sh:createTerm
+
+    This construct would allow the creation of new terms (nodes) with unique identifiers.
+
+    Syntax:
+    turtle
+    Copy
+
+    sh:createTerm [
+        sh:prefix "ex:" ; # Optional: prefix for generated IDs
+        sh:id ?newTerm ;  # Variable to bind the new term's ID
+    ] .
+
+2. New Construct: sh:linkTerm
+
+    This construct would allow linking newly created terms or existing terms as subjects or objects in triples.
+
+    Syntax:
+    turtle
+    Copy
+
+    sh:linkTerm [
+        sh:subject ?subject ; # Subject of the triple
+        sh:predicate ex:hasChild ; # Predicate of the triple
+        sh:object ?object ; # Object of the triple
+    ] .
+
+3. New Construct: sh:nestedTriples
+
+    This construct would allow nesting triples to create hierarchical or tree-like structures.
+
+    Syntax:
+    turtle
+    Copy
+
+    sh:nestedTriples [
+        sh:createTerm [
+            sh:prefix "ex:" ;
+            sh:id ?newTerm1 ;
+        ] ;
+        sh:linkTerm [
+            sh:subject ex:ParentNode ;
+            sh:predicate ex:hasChild ;
+            sh:object ?newTerm1 ;
+        ] ;
+        sh:nestedTriples [
+            sh:createTerm [
+                sh:prefix "ex:" ;
+                sh:id ?newTerm2 ;
+            ] ;
+            sh:linkTerm [
+                sh:subject ?newTerm1 ;
+                sh:predicate ex:hasChild ;
+                sh:object ?newTerm2 ;
+            ] ;
+        ] ;
+    ] .
+
+Example: Creating a Nested Tree Structure
+
+Suppose we want to create a tree structure where a parent node (ex:ParentNode) has a child node, and the child node has its own child node. Here's how the extended SHACL-AF could look:
+turtle
+Copy
+
+ex:TreeShape a sh:NodeShape ;
+    sh:targetNode ex:ParentNode ;
+    sh:rule [
+        a sh:SPARQLRule ;
+        sh:prefixes ex: ;
+        sh:condition [
+            sh:property [
+                sh:path ex:hasChild ;
+                sh:minCount 1 ;
+            ] ;
+        ] ;
+        sh:nestedTriples [
+            sh:createTerm [
+                sh:prefix "ex:" ;
+                sh:id ?newTerm1 ;
+            ] ;
+            sh:linkTerm [
+                sh:subject ex:ParentNode ;
+                sh:predicate ex:hasChild ;
+                sh:object ?newTerm1 ;
+            ] ;
+            sh:nestedTriples [
+                sh:createTerm [
+                    sh:prefix "ex:" ;
+                    sh:id ?newTerm2 ;
+                ] ;
+                sh:linkTerm [
+                    sh:subject ?newTerm1 ;
+                    sh:predicate ex:hasChild ;
+                    sh:object ?newTerm2 ;
+                ] ;
+            ] ;
+        ] ;
+    ] .
+
+Explanation of the Example
+
+    Target Node:
+
+        The shape targets ex:ParentNode.
+
+    Condition:
+
+        The rule is triggered if ex:ParentNode has at least one child (sh:minCount 1).
+
+    Nested Triple Creation:
+
+        A new term (?newTerm1) is created and linked as a child of ex:ParentNode.
+
+        Another new term (?newTerm2) is created and linked as a child of ?newTerm1.
+
+    Resulting Triples:
+
+        ex:ParentNode ex:hasChild ex:newTerm1.
+
+        ex:newTerm1 ex:hasChild ex:newTerm2.
