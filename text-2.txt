@@ -1,0 +1,619 @@
+Extending SHACL-AF to support nested triple creation and tree-like structures is an interesting idea. This would involve introducing new constructs to dynamically generate new terms (nodes) with unique identifiers, link them to existing terms, and allow for hierarchical or nested relationships. Below is a conceptual proposal for such an extension:
+Proposed Extension: Nested Triple Creation in SHACL-AF
+1. New Construct: sh:createTerm
+
+    This construct would allow the creation of new terms (nodes) with unique identifiers.
+
+    Syntax:
+    turtle
+    Copy
+
+    sh:createTerm [
+        sh:prefix "ex:" ; # Optional: prefix for generated IDs
+        sh:id ?newTerm ;  # Variable to bind the new term's ID
+    ] .
+
+2. New Construct: sh:linkTerm
+
+    This construct would allow linking newly created terms or existing terms as subjects or objects in triples.
+
+    Syntax:
+    turtle
+    Copy
+
+    sh:linkTerm [
+        sh:subject ?subject ; # Subject of the triple
+        sh:predicate ex:hasChild ; # Predicate of the triple
+        sh:object ?object ; # Object of the triple
+    ] .
+
+3. New Construct: sh:nestedTriples
+
+    This construct would allow nesting triples to create hierarchical or tree-like structures.
+
+    Syntax:
+    turtle
+    Copy
+
+    sh:nestedTriples [
+        sh:createTerm [
+            sh:prefix "ex:" ;
+            sh:id ?newTerm1 ;
+        ] ;
+        sh:linkTerm [
+            sh:subject ex:ParentNode ;
+            sh:predicate ex:hasChild ;
+            sh:object ?newTerm1 ;
+        ] ;
+        sh:nestedTriples [
+            sh:createTerm [
+                sh:prefix "ex:" ;
+                sh:id ?newTerm2 ;
+            ] ;
+            sh:linkTerm [
+                sh:subject ?newTerm1 ;
+                sh:predicate ex:hasChild ;
+                sh:object ?newTerm2 ;
+            ] ;
+        ] ;
+    ] .
+
+Example: Creating a Nested Tree Structure
+
+Suppose we want to create a tree structure where a parent node (ex:ParentNode) has a child node, and the child node has its own child node. Here's how the extended SHACL-AF could look:
+turtle
+Copy
+
+ex:TreeShape a sh:NodeShape ;
+    sh:targetNode ex:ParentNode ;
+    sh:rule [
+        a sh:SPARQLRule ;
+        sh:prefixes ex: ;
+        sh:condition [
+            sh:property [
+                sh:path ex:hasChild ;
+                sh:minCount 1 ;
+            ] ;
+        ] ;
+        sh:nestedTriples [
+            sh:createTerm [
+                sh:prefix "ex:" ;
+                sh:id ?newTerm1 ;
+            ] ;
+            sh:linkTerm [
+                sh:subject ex:ParentNode ;
+                sh:predicate ex:hasChild ;
+                sh:object ?newTerm1 ;
+            ] ;
+            sh:nestedTriples [
+                sh:createTerm [
+                    sh:prefix "ex:" ;
+                    sh:id ?newTerm2 ;
+                ] ;
+                sh:linkTerm [
+                    sh:subject ?newTerm1 ;
+                    sh:predicate ex:hasChild ;
+                    sh:object ?newTerm2 ;
+                ] ;
+            ] ;
+        ] ;
+    ] .
+
+Explanation of the Example
+
+    Target Node:
+
+        The shape targets ex:ParentNode.
+
+    Condition:
+
+        The rule is triggered if ex:ParentNode has at least one child (sh:minCount 1).
+
+    Nested Triple Creation:
+
+        A new term (?newTerm1) is created and linked as a child of ex:ParentNode.
+
+        Another new term (?newTerm2) is created and linked as a child of ?newTerm1.
+
+    Resulting Triples:
+
+        ex:ParentNode ex:hasChild ex:newTerm1.
+
+        ex:newTerm1 ex:hasChild ex:newTerm2.
+
+Benefits of This Extension
+
+    Dynamic Term Creation:
+
+        Allows for the creation of new terms with unique IDs, enabling flexible data generation.
+
+    Hierarchical Structures:
+
+        Supports the creation of nested or tree-like structures, which are common in many domains (e.g., organizational charts, taxonomies).
+
+    Integration with Existing Terms:
+
+        Enables linking newly created terms to existing terms, facilitating data integration.
+
+    Declarative Syntax:
+
+        Maintains the declarative nature of SHACL, making it easy to define complex rules.
+
+Challenges and Considerations
+
+    Uniqueness of Generated IDs:
+
+        A mechanism is needed to ensure that generated IDs are unique within the dataset.
+
+    Performance:
+
+        Generating and linking terms dynamically could impact performance for large datasets.
+
+    Validation:
+
+        Rules for validating dynamically created triples would need to be carefully designed.
+
+    Backward Compatibility:
+
+        The extension should be compatible with existing SHACL implementations.
+
+This extension would significantly enhance SHACL-AF's capabilities, making it suitable for more complex data modeling and transformation tasks.
+let's define an expression to create a Term and give it temporary reference sh:id. The term can take a output from a function to create an iri
+
+To define an expression for creating a Term with a temporary reference (sh:id) and allow the Term to take an output from a function to create an IRI, we can extend SHACL-AF with a new construct. This construct would combine the ability to generate temporary references with the ability to compute IRIs using functions.
+Proposed Extension: sh:createTerm with Function-Based IRI Generation
+Syntax:
+turtle
+Copy
+
+sh:createTerm [
+    sh:id ?tempReference ; # Temporary reference for the new term
+    sh:iriFunction [       # Function to compute the IRI for the new term
+        sh:function ex:generateIRI ;
+        sh:parameters (
+            [ sh:path ex:baseIRI ] # Input parameter for the function
+        ) ;
+    ] ;
+] .
+
+Key Components:
+
+    sh:id:
+
+        A temporary reference (variable) that can be used to refer to the newly created term within the rule or shape.
+
+    sh:iriFunction:
+
+        A function that computes the IRI for the new term.
+
+        The function can take parameters (e.g., existing properties or values) to generate the IRI dynamically.
+
+    sh:function:
+
+        Specifies the function to be used for IRI generation. This could be a built-in function or a custom SPARQL function.
+
+    sh:parameters:
+
+        Inputs to the function, which can be paths, constants, or other expressions.
+
+Example: Creating a Term with a Function-Generated IRI
+
+Suppose we want to create a new term with an IRI generated by concatenating a base IRI (ex:baseIRI) with a UUID. Here's how the expression could look:
+turtle
+Copy
+
+ex:CreateTermShape a sh:NodeShape ;
+    sh:targetNode ex:ExampleNode ;
+    sh:rule [
+        a sh:SPARQLRule ;
+        sh:prefixes ex: ;
+        sh:condition [
+            sh:property [
+                sh:path ex:baseIRI ;
+                sh:minCount 1 ;
+            ] ;
+        ] ;
+        sh:createTerm [
+            sh:id ?newTerm ; # Temporary reference for the new term
+            sh:iriFunction [
+                sh:function ex:generateIRI ;
+                sh:parameters (
+                    [ sh:path ex:baseIRI ] # Input parameter for the function
+                ) ;
+            ] ;
+        ] ;
+        sh:linkTerm [
+            sh:subject ex:ExampleNode ;
+            sh:predicate ex:hasChild ;
+            sh:object ?newTerm ; # Link the new term to the target node
+        ] ;
+    ] .
+
+Explanation of the Example
+
+    Target Node:
+
+        The shape targets ex:ExampleNode.
+
+    Condition:
+
+        The rule is triggered if ex:ExampleNode has a value for the ex:baseIRI property.
+
+    Term Creation:
+
+        A new term is created with a temporary reference ?newTerm.
+
+        The IRI for the new term is generated using the ex:generateIRI function, which takes ex:baseIRI as input.
+
+    Linking the New Term:
+
+        The new term is linked to ex:ExampleNode using the ex:hasChild predicate.
+
+Function Definition: ex:generateIRI
+
+The ex:generateIRI function could be implemented as a SPARQL function. For example:
+sparql
+Copy
+
+PREFIX ex: <http://example.org/>
+PREFIX sh: <http://www.w3.org/ns/shacl#>
+
+INSERT {
+    ?newTerm a ex:Term .
+    ?subject ex:hasChild ?newTerm .
+}
+WHERE {
+    BIND(URI(CONCAT(STR(?baseIRI), "/", STR(UUID()))) AS ?newTerm)
+    BIND(ex:ExampleNode AS ?subject)
+    ?subject ex:baseIRI ?baseIRI .
+}
+
+Resulting Triples
+
+If ex:ExampleNode has the property ex:baseIRI with the value http://example.org/base, the rule could generate the following triples:
+turtle
+Copy
+
+<http://example.org/base/123e4567-e89b-12d3-a456-426614174000> a ex:Term .
+ex:ExampleNode ex:hasChild <http://example.org/base/123e4567-e89b-12d3-a456-426614174000> .
+
+Benefits of This Approach
+
+    Dynamic IRI Generation:
+
+        Allows for flexible and dynamic generation of IRIs based on input parameters.
+
+    Temporary References:
+
+        Enables the use of temporary references (sh:id) to refer to newly created terms within the rule.
+
+    Integration with Functions:
+
+        Leverages existing or custom SPARQL functions for complex IRI generation logic.
+
+    Declarative Syntax:
+
+        Maintains the declarative nature of SHACL, making it easy to define and understand.
+
+Challenges and Considerations
+
+    Function Implementation:
+
+        The function (ex:generateIRI) must be implemented and registered in the SPARQL engine.
+
+    Uniqueness of IRIs:
+
+        The function must ensure that generated IRIs are unique within the dataset.
+
+    Performance:
+
+        Dynamic IRI generation and term creation could impact performance for large datasets.
+
+    Validation:
+
+        Rules for validating dynamically created terms and IRIs would need to be carefully designed.
+
+This extension would provide a powerful mechanism for creating and linking terms dynamically, enabling more advanced data modeling and transformation capabilities in SHACL-AF.
+Let's not use sparql
+
+If we want to avoid using SPARQL and instead rely purely on SHACL-AF constructs, we can define a declarative approach for creating terms with temporary references and function-generated IRIs. This approach would leverage SHACL's existing features and extend them with new constructs for term creation and IRI generation.
+Proposed Extension: Declarative Term Creation and IRI Generation
+1. New Construct: sh:createTerm
+
+    Creates a new term with a temporary reference (sh:id) and an optional function to generate its IRI.
+
+    Syntax:
+    turtle
+    Copy
+
+    sh:createTerm [
+        sh:id ?tempReference ; # Temporary reference for the new term
+        sh:iriFunction [       # Function to compute the IRI for the new term
+            sh:function ex:generateIRI ;
+            sh:parameters (
+                [ sh:path ex:baseIRI ] # Input parameter for the function
+            ) ;
+        ] ;
+    ] .
+
+2. New Construct: sh:iriFunction
+
+    Specifies a function to generate the IRI for the new term.
+
+    The function can take parameters (e.g., values from the focus node or other paths).
+
+3. New Construct: sh:linkTerm
+
+    Links the newly created term to an existing node or another term.
+
+    Syntax:
+    turtle
+    Copy
+
+    sh:linkTerm [
+        sh:subject ?subject ; # Subject of the triple
+        sh:predicate ex:hasChild ; # Predicate of the triple
+        sh:object ?object ; # Object of the triple
+    ] .
+
+Example: Declarative Term Creation with IRI Generation
+
+Suppose we want to create a new term with an IRI generated by concatenating a base IRI (ex:baseIRI) with a UUID, and link it to an existing node (ex:ExampleNode). Here's how the declarative approach would look:
+turtle
+Copy
+
+ex:CreateTermShape a sh:NodeShape ;
+    sh:targetNode ex:ExampleNode ;
+    sh:rule [
+        a sh:NodeRule ;
+        sh:condition [
+            sh:property [
+                sh:path ex:baseIRI ;
+                sh:minCount 1 ;
+            ] ;
+        ] ;
+        sh:createTerm [
+            sh:id ?newTerm ; # Temporary reference for the new term
+            sh:iriFunction [
+                sh:function ex:generateIRI ;
+                sh:parameters (
+                    [ sh:path ex:baseIRI ] # Input parameter for the function
+                ) ;
+            ] ;
+        ] ;
+        sh:linkTerm [
+            sh:subject ex:ExampleNode ;
+            sh:predicate ex:hasChild ;
+            sh:object ?newTerm ; # Link the new term to the target node
+        ] ;
+    ] .
+
+Explanation of the Example
+
+    Target Node:
+
+        The shape targets ex:ExampleNode.
+
+    Condition:
+
+        The rule is triggered if ex:ExampleNode has a value for the ex:baseIRI property.
+
+    Term Creation:
+
+        A new term is created with a temporary reference ?newTerm.
+
+        The IRI for the new term is generated using the ex:generateIRI function, which takes ex:baseIRI as input.
+
+    Linking the New Term:
+
+        The new term is linked to ex:ExampleNode using the ex:hasChild predicate.
+
+Function Definition: ex:generateIRI
+
+The ex:generateIRI function would be a built-in or custom SHACL function. For example, it could concatenate the base IRI with a UUID:
+turtle
+Copy
+
+ex:generateIRI a sh:Function ;
+    sh:returnType xsd:anyURI ;
+    sh:parameter [
+        sh:path ex:baseIRI ;
+        sh:datatype xsd:anyURI ;
+    ] ;
+    sh:expression """
+        CONCAT(STR(?baseIRI), "/", STR(UUID()))
+    """ .
+
+Resulting Triples
+
+If ex:ExampleNode has the property ex:baseIRI with the value http://example.org/base, the rule could generate the following triples:
+turtle
+Copy
+
+<http://example.org/base/123e4567-e89b-12d3-a456-426614174000> a ex:Term .
+ex:ExampleNode ex:hasChild <http://example.org/base/123e4567-e89b-12d3-a456-426614174000> .
+
+Benefits of This Approach
+
+    Declarative Syntax:
+
+        Avoids the need for SPARQL, making the rules easier to write and understand.
+
+    Dynamic IRI Generation:
+
+        Allows for flexible and dynamic generation of IRIs based on input parameters.
+
+    Temporary References:
+
+        Enables the use of temporary references (sh:id) to refer to newly created terms within the rule.
+
+    Integration with SHACL:
+
+        Leverages SHACL's existing constructs and extends them in a natural way.
+
+Challenges and Considerations
+
+    Function Implementation:
+
+        The function (ex:generateIRI) must be implemented as a SHACL function.
+
+    Uniqueness of IRIs:
+
+        The function must ensure that generated IRIs are unique within the dataset.
+
+    Performance:
+
+        Dynamic IRI generation and term creation could impact performance for large datasets.
+
+    Validation:
+
+        Rules for validating dynamically created terms and IRIs would need to be carefully designed.
+
+This declarative approach provides a clean and powerful way to create and link terms dynamically without relying on SPARQL, making it more accessible for users familiar with SHACL.
+can we look at creation semantic that looks like turtle and we can reference values as expressions. We also introduce a new expression that allows us to refer to temporary named ids
+
+To create a declarative term creation semantic that resembles Turtle syntax and allows referencing values as expressions, we can introduce a new construct that combines the readability of Turtle with the flexibility of expressions. Additionally, we can introduce a new expression (sh:tempId) to refer to temporary named IDs. This approach will make it easier to define complex term creation rules in a way that is both intuitive and powerful.
+Proposed Extension: Declarative Term Creation with Turtle-like Syntax
+1. New Construct: sh:createGraph
+
+    Allows the creation of a subgraph (set of triples) using Turtle-like syntax.
+
+    Supports expressions for dynamic values and temporary IDs.
+
+    Syntax:
+    turtle
+    Copy
+
+    sh:createGraph '''
+        # Turtle-like syntax for creating triples
+        ex:ExampleNode ex:hasChild ?newTerm .
+        ?newTerm a ex:Term ;
+            ex:generatedIRI ?newIRI ;
+            ex:property ?valueExpression .
+    ''' ;
+    sh:bindings [
+        sh:tempId ?newTerm ; # Temporary ID for the new term
+        sh:expression ?newIRI ex:generateIRI(ex:baseIRI) ; # Expression for IRI generation
+        sh:expression ?valueExpression ex:someFunction(ex:somePath) ; # Expression for dynamic values
+    ] .
+
+2. New Expression: sh:tempId
+
+    Refers to a temporary named ID that can be used within the sh:createGraph block.
+
+    Example:
+    turtle
+    Copy
+
+    sh:tempId ?newTerm .
+
+3. New Expression: sh:expression
+
+    Allows referencing dynamic values or computed expressions.
+
+    Example:
+    turtle
+    Copy
+
+    sh:expression ?newIRI ex:generateIRI(ex:baseIRI) .
+
+Example: Creating a Term with Turtle-like Syntax
+
+Suppose we want to create a new term with a dynamically generated IRI and link it to an existing node (ex:ExampleNode). Here's how the declarative approach would look:
+turtle
+Copy
+
+ex:CreateTermShape a sh:NodeShape ;
+    sh:targetNode ex:ExampleNode ;
+    sh:rule [
+        a sh:NodeRule ;
+        sh:condition [
+            sh:property [
+                sh:path ex:baseIRI ;
+                sh:minCount 1 ;
+            ] ;
+        ] ;
+        sh:createGraph '''
+            ex:ExampleNode ex:hasChild ?newTerm .
+            ?newTerm a ex:Term ;
+                ex:generatedIRI ?newIRI ;
+                ex:createdOn ?currentDate .
+        ''' ;
+        sh:bindings [
+            sh:tempId ?newTerm ; # Temporary ID for the new term
+            sh:expression ?newIRI ex:generateIRI(ex:baseIRI) ; # Generate IRI using a function
+            sh:expression ?currentDate NOW() ; # Use a function to get the current date
+        ] ;
+    ] .
+
+Explanation of the Example
+
+    Target Node:
+
+        The shape targets ex:ExampleNode.
+
+    Condition:
+
+        The rule is triggered if ex:ExampleNode has a value for the ex:baseIRI property.
+
+    Term Creation:
+
+        A new term is created with a temporary ID ?newTerm.
+
+        The IRI for the new term is generated using the ex:generateIRI function, which takes ex:baseIRI as input.
+
+        The current date is computed using the NOW() function and assigned to ex:createdOn.
+
+    Linking the New Term:
+
+        The new term is linked to ex:ExampleNode using the ex:hasChild predicate.
+
+Resulting Triples
+
+If ex:ExampleNode has the property ex:baseIRI with the value http://example.org/base, and the current date is 2023-10-05, the rule could generate the following triples:
+turtle
+Copy
+
+<http://example.org/base/123e4567-e89b-12d3-a456-426614174000> a ex:Term ;
+    ex:generatedIRI <http://example.org/base/123e4567-e89b-12d3-a456-426614174000> ;
+    ex:createdOn "2023-10-05"^^xsd:date .
+
+ex:ExampleNode ex:hasChild <http://example.org/base/123e4567-e89b-12d3-a456-426614174000> .
+
+Benefits of This Approach
+
+    Turtle-like Syntax:
+
+        Makes term creation intuitive and easy to read, especially for users familiar with Turtle.
+
+    Dynamic Expressions:
+
+        Allows referencing dynamic values and computed expressions within the term creation process.
+
+    Temporary IDs:
+
+        Enables the use of temporary named IDs (sh:tempId) for referring to newly created terms.
+
+    Declarative and Extensible:
+
+        Maintains the declarative nature of SHACL while providing extensibility for complex use cases.
+
+Challenges and Considerations
+
+    Expression Evaluation:
+
+        A mechanism is needed to evaluate expressions (e.g., ex:generateIRI, NOW()) within the SHACL engine.
+
+    Uniqueness of Temporary IDs:
+
+        Temporary IDs must be unique within the scope of the rule to avoid conflicts.
+
+    Performance:
+
+        Dynamic term creation and expression evaluation could impact performance for large datasets.
+
+    Validation:
+
+        Rules for validating dynamically created terms and expressions would need to be carefully designed.
+
+This approach combines the readability of Turtle with the flexibility of expressions, making it a powerful tool for defining complex term creation rules in SHACL. It avoids the need for SPARQL while maintaining a declarative and intuitive syntax.
